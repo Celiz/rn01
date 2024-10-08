@@ -47,6 +47,7 @@ Este proyecto incluye un archivo PHP para el manejo de autenticación de usuario
    - Abre tu navegador web y accede a `http://localhost/login/login.php` para verificar que el archivo esté funcionando correctamente.
 
 5. **Base de datos**:
+   ```
    CREATE DATABASE usuarios;
    USE usuarios;
 
@@ -56,6 +57,7 @@ Este proyecto incluye un archivo PHP para el manejo de autenticación de usuario
       password VARCHAR(255) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
    ); 
+   ```
 
 
 ## Get a fresh project
