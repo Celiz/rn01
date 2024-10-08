@@ -46,6 +46,17 @@ Este proyecto incluye un archivo PHP para el manejo de autenticación de usuario
 4. **Acceder al archivo**:
    - Abre tu navegador web y accede a `http://localhost/login/login.php` para verificar que el archivo esté funcionando correctamente.
 
+5. **Base de datos**:
+   CREATE DATABASE usuarios;
+   USE usuarios;
+
+   CREATE TABLE users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   ); 
+
 
 ## Get a fresh project
 
