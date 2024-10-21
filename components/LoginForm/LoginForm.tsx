@@ -46,7 +46,7 @@ export default function LoginForm() {
   });
 
   const [, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
-    clientId: 'YOUR_FACEBOOK_APP_ID',
+    clientId: '893258686094057',
   });
 
   React.useEffect(() => {
@@ -134,7 +134,7 @@ export default function LoginForm() {
           console.log('Datos del usuario:', response.data);
 
           setUsername(response.data.mail);
-          router.push("/(tabs)\\userProfile");
+          router.push("/(tabs)/userProfile");
           setIsModalOpen(true);
         } else {
           setFormErrors(prevErrors => ({
