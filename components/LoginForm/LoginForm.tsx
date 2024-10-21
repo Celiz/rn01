@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import axios from 'axios';
-import './LoginForm.css';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import * as Facebook from 'expo-auth-session/providers/facebook';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import WelcomeModal from '../Modal/Modal';
+import { router } from 'expo-router';
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface FormData {
   email: string;
@@ -15,7 +22,6 @@ interface FormErrors {
 }
 
 export default function LoginForm() {
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [username, setUsername] = useState('');
 
@@ -31,7 +37,34 @@ export default function LoginForm() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLogin, setIsLogin] = useState(true); 
+  const [isLogin, setIsLogin] = useState(true);
+
+  const [, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    iosClientId: 'YOUR_IOS_CLIENT_ID',
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
+    webClientId: '465439229847-trq2um11g9oikfb0pic9dqhlm0aj55pl.apps.googleusercontent.com',
+  });
+
+  const [, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
+    clientId: 'YOUR_FACEBOOK_APP_ID',
+  });
+
+  React.useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { authentication } = googleResponse;
+      // TODO: Send authentication.accessToken to your server
+      console.log('Google Sign In successful', authentication);
+    }
+  }, [googleResponse]);
+
+  React.useEffect(() => {
+    if (fbResponse?.type === 'success') {
+      const { authentication } = fbResponse;
+      // TODO: Send authentication.accessToken to your server
+      console.log('Facebook Sign In successful', authentication);
+    }
+  }, [fbResponse]);
+
   const validateForm = () => {
     let isValid = true;
     const newErrors: FormErrors = {
@@ -70,14 +103,13 @@ export default function LoginForm() {
     return isValid;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleInputChange = (name: keyof FormData, value: string) => {
     setFormData(prevData => ({
       ...prevData,
       [name]: value
     }));
 
-    if (formErrors[name as keyof FormErrors]) {
+    if (formErrors[name]) {
       setFormErrors(prevErrors => ({
         ...prevErrors,
         [name]: ''
@@ -85,12 +117,10 @@ export default function LoginForm() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setIsSubmitting(true);
 
     if (validateForm()) {
-      // Crear el objeto de datos incluyendo el campo 'action'
       const requestData = {
         ...formData,
         action: isLogin ? 'login' : 'register'
@@ -104,6 +134,7 @@ export default function LoginForm() {
           console.log('Datos del usuario:', response.data);
 
           setUsername(response.data.mail);
+          router.push("/(tabs)\\userProfile");
           setIsModalOpen(true);
         } else {
           setFormErrors(prevErrors => ({
@@ -131,76 +162,200 @@ export default function LoginForm() {
 
   const toggleLoginRegister = () => {
     setIsLogin(!isLogin);
-    setFormErrors({ email: '', password: '', general: '' }); // Limpiar errores al cambiar entre login y registro
+    setFormErrors({ email: '', password: '', general: '' });
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
 
+  const handleGoogleSignIn = async () => {
+    await googlePromptAsync();
+  };
+
+  const handleFacebookSignIn = async () => {
+    await fbPromptAsync();
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      // TODO: Send credential to your server for verification
+      console.log('Apple Sign In successful', credential);
+    } catch (e) {
+      if ((e as Error).message === 'ERR_CANCELED') {
+        console.log('Apple Sign In was canceled');
+      } else {
+        console.log('Apple Sign In error:', e);
+      }
+    }
+  };
+
   return (
-    <>
-    <form onSubmit={handleSubmit} className="login-form">
-      <div className="login-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" /></svg>
-      </div>
+    <View style={styles.container}>
+      <View style={styles.formContainer}>
+        <Text style={styles.title}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
 
-      <h1 className="login-title">{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</h1>
+        {formErrors.general && (
+          <Text style={styles.errorGeneral}>{formErrors.general}</Text>
+        )}
 
-      {formErrors.general && (
-        <div className="error-general">{formErrors.general}</div>
-      )}
-
-      <div className="form-group">
-        <input
-          className={`form-input ${formErrors.email ? 'input-error' : ''}`}
+        <TextInput
+          style={[styles.input, formErrors.email ? styles.inputError : null]}
           placeholder="Email"
-          name="email"
           value={formData.email}
-          onChange={handleInputChange}
-          onBlur={validateForm}
-          type="email"
-          required
+          onChangeText={(text) => handleInputChange('email', text)}
+          keyboardType="email-address"
         />
         {formErrors.email && (
-          <p className="error-text">{formErrors.email}</p>
+          <Text style={styles.errorText}>{formErrors.email}</Text>
         )}
-      </div>
 
-      <div className="form-group">
-        <input
-          className={`form-input ${formErrors.password ? 'input-error' : ''}`}
+        <TextInput
+          style={[styles.input, formErrors.password ? styles.inputError : null]}
           placeholder="Contraseña"
-          name="password"
           value={formData.password}
-          onChange={handleInputChange}
-          onBlur={validateForm}
-          type="password"
-          required
+          onChangeText={(text) => handleInputChange('password', text)}
+          secureTextEntry
         />
         {formErrors.password && (
-          <p className="error-text">{formErrors.password}</p>
+          <Text style={styles.errorText}>{formErrors.password}</Text>
         )}
-      </div>
 
-      <button
-        type="submit"
-        className={`submit-button ${isSubmitting ? 'button-submitting' : ''}`}
-        disabled={isSubmitting}
+        <TouchableOpacity
+          style={[styles.button, isSubmitting ? styles.buttonSubmitting : null]}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
         >
-        {isSubmitting ? (isLogin ? 'Iniciando sesión...' : 'Registrando...') : (isLogin ? 'Iniciar Sesión' : 'Registrarse')}
-      </button>
+          <Text style={styles.buttonText}>
+            {isSubmitting ? (isLogin ? 'Iniciando sesión...' : 'Registrando...') : (isLogin ? 'Iniciar Sesión' : 'Registrarse')}
+          </Text>
+        </TouchableOpacity>
 
-      <button type="button" onClick={toggleLoginRegister} className="toggle-button">
-        {isLogin ? 'Crear una cuenta' : 'Ya tengo una cuenta'}
-      </button>
-    </form>
-    <WelcomeModal
-      isOpen={isModalOpen}
-      onClose={handleCloseModal}
-      username={formData.email}
+        <TouchableOpacity onPress={toggleLoginRegister} style={styles.toggleButton}>
+          <Text style={styles.toggleButtonText}>
+            {isLogin ? 'Crear una cuenta' : 'Ya tengo una cuenta'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.separator}>
+          <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>O</Text>
+          <View style={styles.separatorLine} />
+        </View>
+
+        <TouchableOpacity style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
+          <Text style={styles.buttonText}>Iniciar sesión con Google</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.button, styles.facebookButton]} onPress={handleFacebookSignIn}>
+          <Text style={styles.buttonText}>Iniciar sesión con Facebook</Text>
+        </TouchableOpacity>
+
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={5}
+          style={styles.appleButton}
+          onPress={handleAppleSignIn}
+        />
+      </View>
+
+      <WelcomeModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        username={formData.email}
       />
-    </>
-    
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  formContainer: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  inputError: {
+    borderColor: 'red',
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
+  },
+  errorGeneral: {
+    color: 'red',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  buttonSubmitting: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  toggleButton: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  toggleButtonText: {
+    color: '#007AFF',
+  },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'gray',
+  },
+  separatorText: {
+    marginHorizontal: 10,
+    color: 'gray',
+  },
+  googleButton: {
+    backgroundColor: '#DB4437',
+  },
+  facebookButton: {
+    backgroundColor: '#4267B2',
+  },
+  appleButton: {
+    width: '100%',
+    height: 44,
+    marginTop: 10,
+  },
+});
